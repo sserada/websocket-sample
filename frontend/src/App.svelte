@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import Header from './Header.svelte';
 
   // Variable to store the selected image file
   let selectedImage: File | null = null;
@@ -17,6 +18,21 @@
       // Save the selected image
       selectedImage = input.files[0];
     }
+  }
+
+  // Handler for the drop event
+  function handleDrop(event: DragEvent) {
+    event.preventDefault();
+    const file = event.dataTransfer?.files[0];
+    if (file) {
+      // Save the dropped image
+      selectedImage = file;
+    }
+  }
+
+  // Prevent the default behavior for the dragover event
+  function handleDragOver(event: DragEvent) {
+    event.preventDefault();
   }
 
   // Function to establish a connection to the WebSocket server
@@ -77,22 +93,40 @@
 </script>
 
 <main>
-  <input type="file" id="image" on:change={handleImageChange} />
-  <label for="image">Select Image</label>
-  <button on:click={sendImage}>Send</button>
+  <div class="container">
+    <div
+      class="drop-area"
+      on:drop={handleDrop}
+      on:dragover={handleDragOver}
+    >
+      <p>Drag and drop an image here</p>
+      <input
+        type="file"
+        id="image"
+        on:change={handleImageChange}
+        style="display: none"
+      />
+      <label for="image">Select Image</label>
+    </div>
+    <button on:click={sendImage}>Send</button>
+  </div>
 
-  {#if selectedImage}
-    <img src={URL.createObjectURL(selectedImage)} />
-  {/if}
-  {#if !selectedImage}
-    <p>No image selected</p>
-  {/if}
-  {#if receivedData.length > 0}
-    <img src={receivedData[receivedData.length - 1]} />
-  {/if}
-  {#if !receivedData.length}
-    <p>No data received yet</p>
-  {/if}
+  <table>
+    <tr>
+      {#if selectedImage}
+        <td><img src={URL.createObjectURL(selectedImage)} /></td>
+      {/if}
+      {#if !selectedImage}
+        <td>No image selected</td>
+      {/if}
+      {#if receivedData.length > 0}
+        <td><img src={receivedData[receivedData.length - 1]} /></td>
+      {/if}
+      {#if !receivedData.length}
+        <td>No image received yet</td>
+      {/if}
+    </tr>
+  </table>
 </main>
 
 <style>
@@ -101,12 +135,26 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100vh;
+    height: 90vh;
   }
 
-  p {
-    color: #000;
-    margin: 1rem;
+  .container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .drop-area {
+    width: 900px;
+    height: 300px;
+    border: 2px dashed #eee;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2rem;
+
   }
 
   input {
@@ -114,8 +162,11 @@
   }
 
   label {
+    text-align: center;
     padding: 1rem;
-    background-color: #000;
+    width: 150px;
+    background-color: #0066b2;
+    opacity: 0.8;
     color: #fff;
     border-radius: 0.5rem;
     cursor: pointer;
@@ -123,15 +174,30 @@
 
   button {
     padding: 1rem;
-    background-color: #000;
+    background-color: #0066b2;
+    opacity: 0.8;
     color: #fff;
     border-radius: 0.5rem;
     cursor: pointer;
+    margin-left: 1rem;
+  }
+
+  table {
+    margin-top: 2rem;
+    border-collapse: collapse;
+  }
+
+  td {
+    text-align: center;
+    padding: 1rem;
+    width: 250px;
+    height: 150px;
+    border: 1px solid #eee;
   }
 
   img {
-    object-fit: contain;
-    max-width: 60%;
+    max-width: 400px;
+    max-height: 300px;
   }
 </style>
 
