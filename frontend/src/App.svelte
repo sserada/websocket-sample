@@ -2,8 +2,8 @@
   import { onMount } from 'svelte';
   import Header from './Header.svelte';
 
-  // Variable to store the selected image file
-  let selectedImage: File | null = null;
+  // Variables to store the selected image files
+  let selectedImages: File[] = [];
 
   // Variable to manage the WebSocket connection
   let connection: WebSocket | null = null;
@@ -14,19 +14,19 @@
   // Handler for the image selection event
   function handleImageChange(event: Event) {
     const input = event.target as HTMLInputElement;
-    if (input.files && input.files[0]) {
-      // Save the selected image
-      selectedImage = input.files[0];
+    if (input.files) {
+      // Save the selected images
+      selectedImages = Array.from(input.files);
     }
   }
 
   // Handler for the drop event
   function handleDrop(event: DragEvent) {
     event.preventDefault();
-    const file = event.dataTransfer?.files[0];
-    if (file) {
-      // Save the dropped image
-      selectedImage = file;
+    const files = event.dataTransfer?.files;
+    if (files) {
+      // Save the dropped images
+      selectedImages = Array.from(files);
     }
   }
 
@@ -48,13 +48,17 @@
     const data = JSON.parse(event.data);
     // Save the received data
     receivedData = [...receivedData, data.chunk];
+    console.log(receivedData);
   }
 
-  // Function to send the selected image to the server
-  async function sendImage() {
-    if (!selectedImage || !connection) return;
+  // Function to send the selected images to the server
+  async function sendImages() {
+    if (!selectedImages.length || !connection) return;
+
+    let i = 0; // Current image index
 
     const reader = new FileReader();
+
     reader.onloadend = function () {
       // Read the image as Base64 data
       const base64Data = reader.result as string;
@@ -66,24 +70,27 @@
           chunk: base64Data,
         })
       );
+
+      i++; // Go to the next image
+
+      // If there are still images to send, read the next one
+      if (i < selectedImages.length) {
+        reader.readAsDataURL(selectedImages[i]);
+      }
     };
 
     try {
-      reader.readAsDataURL(selectedImage);
+      // Start reading the first image
+      reader.readAsDataURL(selectedImages[i]);
     } catch (error) {
       console.error(error);
       handleError();
     }
   }
 
-  // Function to handle errors: reset the selected image, close the WebSocket connection, and try to reconnect to the server
-  function handleError() {
-    selectedImage = null;
-    if (connection) {
-      connection.close();
-      connection = null;
-    }
-    connectToServer();
+  function resetPage() {
+  // Refresh the page
+  location.reload();
   }
 
   // When the component is mounted, start the connection to the server
@@ -93,39 +100,56 @@
 </script>
 
 <main>
+  <Header />
   <div class="container">
     <div
       class="drop-area"
       on:drop={handleDrop}
       on:dragover={handleDragOver}
     >
-      <p>Drag and drop an image here</p>
+      <p>Drag and drop files here, or click to select files</p>
       <input
         type="file"
         id="image"
         on:change={handleImageChange}
         style="display: none"
+        multiple
       />
-      <label for="image">Select Image</label>
+      <label for="image">Select Images</label>
     </div>
-    <button on:click={sendImage}>Send</button>
+    <div class="buttons">
+      <button on:click={sendImages}>Send</button>
+      <button on:click={resetPage}>Reset</button>
+    </div>
   </div>
 
   <table>
-    <tr>
-      {#if selectedImage}
-        <td><img src={URL.createObjectURL(selectedImage)} /></td>
-      {/if}
-      {#if !selectedImage}
-        <td>No image selected</td>
-      {/if}
-      {#if receivedData.length > 0}
-        <td><img src={receivedData[receivedData.length - 1]} /></td>
-      {/if}
-      {#if !receivedData.length}
-        <td>No image received yet</td>
-      {/if}
-    </tr>
+    {#if selectedImages.length > 0 && receivedData.length === 0}
+      {#each selectedImages as selectedImage, index}
+        <tr>
+          <img src={URL.createObjectURL(selectedImage)} alt="Selected image" />
+        </tr>
+      {/each}
+    {/if}
+
+    {#if receivedData.length > 0}
+      {#each receivedData as data, index}
+        <tr>
+          <td>
+            <img src={URL.createObjectURL(selectedImages[index])} alt="Selected image" />
+          </td>
+          <td>
+            <img src={data} alt="Received image" />
+          </td>
+        </tr>
+      {/each}
+    {/if}
+
+    {#if selectedImages.length === 0 && receivedData.length === 0}
+      <tr>
+        <td>No images selected</td>
+      </tr>
+    {/if}
   </table>
 </main>
 
@@ -135,14 +159,15 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 90vh;
   }
 
   .container {
+    margin-top: 8rem;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    margin-bottom: 2rem;
   }
 
   .drop-area {
@@ -174,6 +199,7 @@
 
   button {
     padding: 1rem;
+    width: 150px;
     background-color: #0066b2;
     opacity: 0.8;
     color: #fff;
@@ -189,6 +215,7 @@
 
   td {
     text-align: center;
+    color: #ccc;
     padding: 1rem;
     width: 250px;
     height: 150px;
@@ -196,8 +223,8 @@
   }
 
   img {
-    max-width: 400px;
-    max-height: 300px;
+    max-width: 250px;
+    max-height: 150px;
   }
 </style>
 
