@@ -28,25 +28,10 @@
 
   // Function to handle data received from the WebSocket
   function handleReceivedData(event: MessageEvent) {
+    // Parse the received data as JSON
     const data = JSON.parse(event.data);
-
-    // Add received data to the array
-    receivedData.push(data.chunk);
-
-    // If it's the last chunk of data, display the image
-    if (data.isLast) {
-      appendImage(receivedData.join(''));
-
-      // Reset the data array
-      receivedData = [];
-    }
-  }
-
-  // Function to create and append an image element to the body of the document
-  function appendImage(base64Data: string) {
-    const image = document.createElement('img');
-    image.src = base64Data;
-    document.body.appendChild(image);
+    // Save the received data
+    receivedData = [...receivedData, data.chunk];
   }
 
   // Function to send the selected image to the server
@@ -65,9 +50,6 @@
           chunk: base64Data,
         })
       );
-
-      // Reset the selected image
-      selectedImage = null;
     };
 
     try {
@@ -98,8 +80,18 @@
   <input type="file" id="image" on:change={handleImageChange} />
   <label for="image">Select Image</label>
   <button on:click={sendImage}>Send</button>
+
   {#if selectedImage}
     <img src={URL.createObjectURL(selectedImage)} />
+  {/if}
+  {#if !selectedImage}
+    <p>No image selected</p>
+  {/if}
+  {#if receivedData.length > 0}
+    <img src={receivedData[receivedData.length - 1]} />
+  {/if}
+  {#if !receivedData.length}
+    <p>No data received yet</p>
   {/if}
 </main>
 
@@ -110,6 +102,11 @@
     align-items: center;
     justify-content: center;
     height: 100vh;
+  }
+
+  p {
+    color: #000;
+    margin: 1rem;
   }
 
   input {
