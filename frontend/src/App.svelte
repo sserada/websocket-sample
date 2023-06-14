@@ -9,7 +9,12 @@
   let connection: WebSocket | null = null;
 
   // Array to store received data (chunks of the image)
-  let receivedData: string[] = [];
+  // Modify it to be an array of arrays
+  let receivedData: string[][] = [];
+
+  // Variable to store the number of received chunks per image
+  let receivedChunkCounts: number[] = [];
+
 
   // Variables to store the number of chunks per image and the current chunk index
   let chunkSize = 1024; // This can be adjusted depending on the network conditions
@@ -74,16 +79,28 @@
     };
   }
 
-  // Function to handle data received from the WebSocket
+  // Modify the handleReceivedData function
   function handleReceivedData(event: MessageEvent) {
     // Parse the received data as JSON
     const data = JSON.parse(event.data);
+
+    const imageIndex = data.imageIndex; // Assuming that this is sent from the server
+
     // Save the received data
-    receivedData = [...receivedData, data.chunk];
+    if (!receivedData[imageIndex]) {
+      receivedData[imageIndex] = [];
+    }
+    receivedData[imageIndex].push(data.chunk);
+    receivedChunkCounts = [...receivedChunkCounts, data.index + 1];
 
     console.log(`Received chunk ${data.index + 1} of ${data.numChunks}`);
-    // If all images have been received, close the connection
-    if (receivedData.length === selectedImages.length) {
+    // If all chunks of the current image have been received, reassemble the image
+    if (receivedChunkCounts.length === data.numChunks) {
+      const image = receivedData[imageIndex].join('');
+      receivedData[imageIndex] = [image]; // Replace the chunks with the reassembled image
+      receivedChunkCounts = []; // Reset the chunk counter
+
+      // Close the connection
       connection?.close();
     }
   }
@@ -99,6 +116,7 @@
         JSON.stringify({
           chunk: base64Data.slice(start, end),
           numChunks: currentChunkIndices[i] === 0 ? chunkCounts[i] : undefined, // Send the total number of chunks with the first chunk
+          imageIndex: i // Send the image index
         })
       );
 
@@ -194,7 +212,7 @@
             <img src={URL.createObjectURL(selectedImages[index])} alt="Selected image" />
           </td>
           <td>
-            <img src={data} alt="Received image" />
+            <img src={data[0]} alt="Received image" />
           </td>
         </tr>
       {/each}
@@ -281,4 +299,3 @@
     max-height: 150px;
   }
 </style>
-
